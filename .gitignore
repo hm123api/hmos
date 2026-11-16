@@ -18,6 +18,7 @@ hmos.iso
 # QEMU run-time artifacts: serial/debug logs, raw frame captures.
 qemu_test/*.log
 qemu_test/shots/*.ppm
+qemu_test/fw/vars-run-*.fd
 
 # Editor / OS noise
 Thumbs.db

@@ -14,8 +14,9 @@ param(
 # Run after build_hmos.bat, or call with -SkipSign only to re-copy an already signed tree.
 
 $ErrorActionPreference = "Stop"
-$root  = "C:\Users\hm\Desktop\hmos"
-$py    = "C:\Python314\python.exe"
+# Project root = this script's folder (portable clone).
+$root  = $PSScriptRoot
+$py    = if ($env:PYTHON) { $env:PYTHON } else { "C:\Python314\python.exe" }
 $iso   = "$root\iso_root"
 $mat   = "$root\esp_material"
 

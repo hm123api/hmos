@@ -15,8 +15,9 @@ param(
 # (see build_esp_image.sh). Screenshots -> shots\sb-disk-<n>.ppm.
 
 $ErrorActionPreference = "Stop"
-$root   = "C:\Users\hm\Desktop\hmos"
-$qexe   = "C:\Program Files\qemu\qemu-system-x86_64.exe"
+# Project root = parent of this script's qemu_test\ folder (portable clone).
+$root   = Split-Path -Parent $PSScriptRoot
+$qexe   = if ($env:QEMU) { $env:QEMU } else { "C:\Program Files\qemu\qemu-system-x86_64.exe" }
 $tdir   = "$root\qemu_test"
 $shots  = "$tdir\shots"
 $fw     = "$tdir\fw"

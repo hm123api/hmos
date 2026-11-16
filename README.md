@@ -36,12 +36,12 @@
 | OVMF/EDK2 固件（普通 + 安全引导 code/vars） | 本机实测版本 | `tools\ovmf\edk2-ovmf-bins\` |
 | 本地 Python 包（pyfatfs / fs / six / appdirs / setuptools） | 见 `tools\pylib` | 由 `PYTHONPATH=tools\pylib` 引入 |
 
-系统级工具（不在 `tools\`，需单独安装）：
+系统级工具（不在 `tools\`，需单独安装；默认按常见安装路径查找，也可用环境变量覆盖）：
 
-- LLVM 工具链：clang 23.1.5、lld-link、ld.lld（`C:\Program Files\LLVM\bin`）
-- Python 3.14（`C:\Python314\python.exe`）
-- OpenSSL（随 Git for Windows：`C:\Program Files\Git\usr\bin\openssl.exe`）
-- QEMU 11.1.0（`C:\Program Files\qemu\qemu-system-x86_64.exe`）
+- LLVM 工具链：clang 23.1.5、lld-link、ld.lld（默认 `C:\Program Files\LLVM\bin`，可用 `CLANG`/`LLD`/`LDLLD` 环境变量覆盖）
+- Python 3.14（默认 `C:\Python314\python.exe`，可用 `PYTHON` 环境变量覆盖）
+- OpenSSL（默认随 Git for Windows：`C:\Program Files\Git\usr\bin\openssl.exe`，可用 `OPENSSL` 环境变量覆盖）
+- QEMU 11.1.0（默认 `C:\Program Files\qemu\qemu-system-x86_64.exe`，可用 `QEMU` 环境变量覆盖）
 
 ## 构建双启动 ISO
 

@@ -1,7 +1,7 @@
 # HMOS Secure Boot 签名 — 现状说明与交付清单
 
 更新时间：2026-11-14
-项目目录：`C:\Users\hm\Desktop\hmos`
+项目目录：仓库根目录（脚本按自身位置推导，clone 后无需改路径）
 
 ## 一、一句话结论
 
@@ -83,13 +83,13 @@ ISO 的 UEFI 启动链（xorriso `--efi-boot`）：
 |---|---|---|
 | NASM | `tools\nasm.exe` | https://www.nasm.us/pub/nasm/releasebuilds/ |
 | xorriso | `tools\xorriso.exe` | https://www.gnu.org/software/xorriso/ （Windows 构建见 https://github.com/robert-scheck/xorriso-windows ） |
-| OpenSSL | Git 自带 `C:\Program Files\Git\usr\bin\openssl.exe` 3.5.9 | https://git-scm.com/download/win |
+| OpenSSL | Git 自带 openssl 3.5.9（`OPENSSL` 环境变量可指定） | https://git-scm.com/download/win |
 | osslsigncode | `tools\osslsigncode\osslsigncode-2.16-windows-amd64\osslsigncode.exe` 2.16 | https://github.com/mtrojnar/osslsigncode/releases （`osslsigncode-2.16-windows-amd64.zip`） |
 | Limine 预编译 | `tools\efi\limine\limine-binary\` 12.9.6 | https://github.com/limine-bootloader/limine/releases |
 | OVMF 固件 | `tools\ovmf\edk2-ovmf-bins\` | https://github.com/osdev0/edk2-ovmf-stable-bins/releases/latest/download/edk2-ovmf-bins.tar.gz |
-| QEMU | `C:\Program Files\qemu\qemu-system-x86_64.exe` 11.1.0 | https://www.qemu.org/download/#windows |
-| LLVM/clang/lld | `C:\Program Files\LLVM\bin` 23.1.5 | https://releases.llvm.org/ |
-| Python | `C:\Python314\python.exe` 3.14.7 | https://www.python.org/ |
+| QEMU | qemu-system-x86_64 11.1.0（`QEMU` 环境变量可指定） | https://www.qemu.org/download/#windows |
+| LLVM/clang/lld | 23.1.5（`CLANG`/`LLD`/`LDLLD` 环境变量可指定） | https://releases.llvm.org/ |
+| Python | 3.14.7（`PYTHON` 环境变量可指定） | https://www.python.org/ |
 
 ## 七、SB 落地路径（ESP 磁盘）与本机已备好的材料
 

@@ -10,17 +10,19 @@ param(
 # Screenshots -> qemu_test\shots\<mode>-<n>.ppm ; serial -> qemu_test\serial-<mode>.log
 
 $ErrorActionPreference = "Stop"
-$root   = "C:\Users\hm\Desktop\hmos"
-$qexe   = "C:\Program Files\qemu\qemu-system-x86_64.exe"
+# Project root = parent of this script's qemu_test\ folder (portable clone).
+$root   = Split-Path -Parent $PSScriptRoot
+$qexe   = if ($env:QEMU) { $env:QEMU } else { "C:\Program Files\qemu\qemu-system-x86_64.exe" }
 $iso    = "$root\hmos.iso"
 $tdir   = "$root\qemu_test"
 $shots  = "$tdir\shots"
 $fw     = "$tdir\fw"
+$ovmf   = "$root\tools\ovmf\edk2-ovmf-bins"
 New-Item -ItemType Directory -Force -Path $shots | Out-Null
 
-$codeFw  = "$fw\code.fd"
-$varsTpl = "$fw\vars.tpl.fd"
-$varsFw  = "$tdir\vars-$Mode.fd"
+$codeFw  = "$ovmf\ovmf-code-x86_64.fd"
+$varsTpl = "$ovmf\ovmf-vars-x86_64.fd"
+$varsFw  = "$fw\vars-run-uefi.fd"
 $serial  = "$tdir\serial-$Mode.log"
 
 if ($Mode -eq "uefi") { Copy-Item $varsTpl $varsFw -Force }

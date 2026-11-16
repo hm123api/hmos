@@ -32,7 +32,8 @@ OSSIGN = os.path.join(TOOLS, "osslsigncode", "osslsigncode-2.16-windows-amd64",
                       "osslsigncode.exe")
 LIMINE_TOOL = os.path.join(TOOLS, "efi", "limine", "limine-binary",
                            "limine-tool-windows-x86", "limine.exe")
-OPENSSL = r"C:\Program Files\Git\usr\bin\openssl.exe"
+# OpenSSL: override via OPENSSL env var; otherwise fall back to the Git-for-Windows copy.
+OPENSSL = os.environ.get("OPENSSL", r"C:\Program Files\Git\usr\bin\openssl.exe")
 
 # EFI GUIDs (UEFI 2.11), bytes_le handled via uuid.UUID.
 CERT_X509 = "a5c059a1-94e4-4aa7-87b5-ab155c2bf072"

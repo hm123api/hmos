@@ -8,11 +8,11 @@ echo Bootloader: Limine (prebuilt, vendored in tools\efi)
 echo ======================================
 
 set NASM=tools\nasm.exe
-set CLANG="C:\Program Files\LLVM\bin\clang.exe"
-set LLD="C:\Program Files\LLVM\bin\lld-link.exe"
-set LDLLD="C:\Program Files\LLVM\bin\ld.lld.exe"
+if not defined CLANG set "CLANG=C:\Program Files\LLVM\bin\clang.exe"
+if not defined LLD set "LLD=C:\Program Files\LLVM\bin\lld-link.exe"
+if not defined LDLLD set "LDLLD=C:\Program Files\LLVM\bin\ld.lld.exe"
 set XORRISO=tools\xorriso.exe
-set PY="C:\Python314\python.exe"
+if not defined PY set "PY=C:\Python314\python.exe"
 set LIMINE=tools\efi\limine\limine-binary
 set LIMINE_TOOL=tools\efi\limine\limine-binary\limine-tool-windows-x86\limine.exe
 set BUILD=build
@@ -40,14 +40,14 @@ if errorlevel 1 (
 )
 
 echo [3/8] Compile UEFI BOOTX64.EFI (HMOS app, chainloaded by Limine)
-%CLANG% --target=x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone -fno-stack-protector -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables -c uefi_main.c -o %BUILD%\uefi.obj
+"%CLANG%" --target=x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone -fno-stack-protector -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables -c uefi_main.c -o %BUILD%\uefi.obj
 if errorlevel 1 (
     echo ERROR: UEFI compile failed
     if /i "%~1"=="nopause" exit /b 1
     pause
     exit /b 1
 )
-%LLD% /NOLOGO /NODEFAULTLIB /SUBSYSTEM:EFI_APPLICATION /ENTRY:efi_main /MACHINE:X64 /DYNAMICBASE /HIGHENTROPYVA:NO /BASE:0 /FILEALIGN:0x200 /NXCOMPAT:NO /TSAWARE:NO /LARGEADDRESSAWARE:NO /HEAP:0 /STACK:0 /OPT:REF /MERGE:.pdata=.rdata /OUT:%BUILD%\BOOTX64.EFI %BUILD%\uefi.obj
+"%LLD%" /NOLOGO /NODEFAULTLIB /SUBSYSTEM:EFI_APPLICATION /ENTRY:efi_main /MACHINE:X64 /DYNAMICBASE /HIGHENTROPYVA:NO /BASE:0 /FILEALIGN:0x200 /NXCOMPAT:NO /TSAWARE:NO /LARGEADDRESSAWARE:NO /HEAP:0 /STACK:0 /OPT:REF /MERGE:.pdata=.rdata /OUT:%BUILD%\BOOTX64.EFI %BUILD%\uefi.obj
 if errorlevel 1 (
     echo ERROR: UEFI link failed
     if /i "%~1"=="nopause" exit /b 1
@@ -56,14 +56,14 @@ if errorlevel 1 (
 )
 
 echo [4/8] Compile HMOS Limine-protocol kernel (ELF64, BIOS + UEFI)
-%CLANG% -target x86_64-unknown-none-elf -ffreestanding -mno-red-zone -fno-stack-protector -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables -c kernel.c -o %BUILD%\kernel.obj
+"%CLANG%" -target x86_64-unknown-none-elf -ffreestanding -mno-red-zone -fno-stack-protector -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables -c kernel.c -o %BUILD%\kernel.obj
 if errorlevel 1 (
     echo ERROR: kernel compile failed
     if /i "%~1"=="nopause" exit /b 1
     pause
     exit /b 1
 )
-%LDLLD% -m elf_x86_64 -static -z max-page-size=0x1000 --gc-sections -T linker.lds -o %BUILD%\kernel.bin %BUILD%\kernel.obj
+"%LDLLD%" -m elf_x86_64 -static -z max-page-size=0x1000 --gc-sections -T linker.lds -o %BUILD%\kernel.bin %BUILD%\kernel.obj
 if errorlevel 1 (
     echo ERROR: kernel link failed
     if /i "%~1"=="nopause" exit /b 1
@@ -86,7 +86,7 @@ rem Limine config (placed at /limine.conf for the documented scan path)
 copy /y limine.conf %TMP_ROOT%\limine.conf >nul
 
 echo [6/8] Secure Boot: enrol config hash, append kernel hash, sign EFI images
-%PY% sign_hmos.py sign-stage %TMP_ROOT%
+"%PY%" sign_hmos.py sign-stage %TMP_ROOT%
 if errorlevel 1 (
     echo ERROR: Secure Boot signing stage failed
     if /i "%~1"=="nopause" exit /b 1

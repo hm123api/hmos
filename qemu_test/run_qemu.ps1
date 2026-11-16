@@ -22,8 +22,9 @@ param(
 #   .\run_qemu.ps1 -NoWindow       # headless (for automated tests)
 
 $ErrorActionPreference = "Stop"
-$root   = "C:\Users\hm\Desktop\hmos"
-$qexe   = "C:\Program Files\qemu\qemu-system-x86_64.exe"
+# Project root = parent of this script's qemu_test\ folder (portable clone).
+$root   = Split-Path -Parent $PSScriptRoot
+$qexe   = if ($env:QEMU) { $env:QEMU } else { "C:\Program Files\qemu\qemu-system-x86_64.exe" }
 $tdir   = "$root\qemu_test"
 $fwdir  = "$tdir\fw"
 $ovmf   = "$root\tools\ovmf\edk2-ovmf-bins"

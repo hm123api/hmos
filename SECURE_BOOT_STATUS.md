@@ -208,6 +208,17 @@ gzip -9 -c esp.img > esp.img.gz
 - 卡上两份 EFI 曾是旧 size-2 配置哈希版本（enroll `12eb8e3d…`），与卡上 conf 整文件哈希 `c85893f2…` 不符，真机/固件加载即配置校验失败。
 - 已用 `esp_material\` 最新签名版覆盖卡上五份材料，复核五文件 SHA256 与源一致，卡上 enroll 哈希 = 卡上 conf 整文件哈希（match: True）。
 
+#### 8.0.8 真机现象与"零配置通用盘"边界（2026-11-16）
+
+- **真机现象**：本机 ASUS AMI UEFI（BIOS 3602，`UEFISecureBootEnabled=1`），U 盘启动项可见，选中后固件提示需关闭安全引导，按 N（否）退回固件主界面；Limine 多引导菜单未出现。
+- **根因**：盘上 `BOOTX64.EFI`/`HMOS.EFI` 由自建测试证书 `CN=HMOS Secure Boot DB Test` 签名；该 db 证书只在虚拟机 OVMF 变量里登记过，**真机出厂 db 不认识**，安全引导校验被拒。签名文件本身未损坏（osslsigncode 摘要 Current=Calculated；本地 `verification: failed` 是未加载 CAfile 的链校验误报，仓库原版同结果）。
+- **"一插即用、不开任何配置"在安全引导下不成立**：固件信任链在本机 db 数据库，U 盘单方面无法改变。普通出厂固件只信任微软 UEFI CA / OEM 自有根；要被出厂信任必须套微软签名的 Shim 并走微软审核签名流程（正规发行版通道，个人自制系统不可用）。Limine 官方安全引导文档亦要求签名密钥被固件加入信任链，无内置微软签名兜底引导器。
+- **现实可达目标**：
+  - 不开安全引导的机器：UEFI 直接扫可移动盘 `\EFI\BOOT\BOOTX64.EFI`，BIOS 走 Limine 链载，可即插即用。
+  - 开安全引导的机器：要么进固件关安全引导，要么先在该机登记自建证书（见 7.3-C）。
+- **本机做不了 GPT+ESP 重做**：无 diskpart/mtools/gdisk/sgdisk/fdisk/parted/mkfs.vfat/syslinux/dd；系统级分区/格式化被策略阻断；云主机无 sudo、装 mtools 被拒。当前物理卡为 MBR `0x0B` 单分区，非 GPT ESP GUID；部分真机 UEFI 可能不把它识别为 ESP。
+- **2026-11-16 材料刷新**：盘上 `BOOTX64.EFI`、`HMOS.EFI` 旧副本已用 `esp_material\` 最新版覆盖，五文件 SHA256 全部 match；旧版备份在盘上 `keys\backup-old-efi\`。盘上另残留 ISO 解包文件（`[BOOT]\*.img`、`boot.bin`、`boot.catalog`、`autorun.*`、`limine-uefi-cd.bin`、`limine-bios-cd.bin`），磁盘 ESP 路径不使用，未删除。
+
 ## 九、测试脚本（`qemu_test\`）
 
 - `run_test.ps1 -Mode bios|uefi`：非 SB 双模式回归。

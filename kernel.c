@@ -64,6 +64,7 @@ static volatile uint64_t limine_requests_end_marker[] = LIMINE_REQUESTS_END_MARK
 #define SCAN_LEFT      0x4b
 #define SCAN_RIGHT     0x4d
 #define SCAN_DEL       0x53
+#define SCAN_EXT_PREFIX 0xe0
 
 /* ---- kernel state ---- */
 
@@ -78,6 +79,7 @@ static size_t g_cursor;   /* insertion index, 0..g_len  */
 static size_t g_cur_row;  /* row where the input prompt lives */
 static int    g_shift;
 static int    g_caps;
+static int    g_ext;      /* next make-code follows an E0 extended prefix */
 
 static uint64_t g_tsc_freq = 0;   /* TSC ticks per second, 0 if unavailable */
 
@@ -165,23 +167,44 @@ static void redraw_input_row(void) {
     draw_line_at(g_line, g_len, g_cur_row, 0x00FFFFFFu);
 }
 
-/* Cursor as an inverted block over the insertion cell: XOR white onto each
- * pixel. Toggling is reversible (XOR twice restores the glyph), so the cursor
- * never paints over or obscures a character. */
-static void toggle_cursor(void) {
+/* Solid block cursor at the insertion cell. On: fill the cell with an
+ * inverted background and draw the glyph in the opposite color; off: leave
+ * the plain glyph. No cross-frame XOR, so the old cursor cell never leaves
+ * residue on a character. */
+static void draw_cursor(int on) {
     if (!g_fb) return;
     size_t col = g_cursor + 2;  /* after "> " */
     size_t px0 = col * STRIDE_X;
     size_t py0 = g_cur_row * STRIDE_Y;
     volatile uint32_t *base = g_fb->address;
+
+    if (!on) return;
+
+    /* fill block background */
     for (size_t row = 0; row < CELL_H; row++) {
         size_t py = py0 + row;
         if (py >= g_fb->height) continue;
         for (size_t dx = 0; dx < CELL_W; dx++) {
             size_t px = px0 + dx;
             if (px >= g_fb->width) continue;
-            volatile uint32_t *p = &base[py * (g_fb->pitch / 4) + px];
-            *p = *p ^ 0x00FFFFFFu;
+            base[py * (g_fb->pitch / 4) + px] = 0x00FFFFFFu;
+        }
+    }
+
+    /* glyph on top, in dark color so it reads as inverted */
+    if (g_cursor < g_len) {
+        unsigned char idx = (unsigned char)g_line[g_cursor];
+        const uint8_t *glyph = font8x16[idx];
+        for (size_t row = 0; row < FONT_H; row++) {
+            uint8_t bits = glyph[row];
+            size_t py = py0 + row;
+            if (py >= g_fb->height) continue;
+            for (size_t c = 0; c < FONT_W; c++) {
+                if (bits & (0x80 >> c)) {
+                    size_t px = px0 + c;
+                    if (px < g_fb->width) base[py * (g_fb->pitch / 4) + px] = 0x00000000u;
+                }
+            }
         }
     }
 }
@@ -189,7 +212,7 @@ static void toggle_cursor(void) {
 /* Redraw the input row and restore the cursor at the current position. */
 static void refresh_input(int cursor_on) {
     redraw_input_row();
-    if (cursor_on) toggle_cursor();
+    draw_cursor(cursor_on);
 }
 
 /* Move all rows up by one, clear the bottom row. Simple single-screen paging. */
@@ -312,14 +335,20 @@ static void kbd_poll(int cursor_on) {
         uint8_t code = inb(KBD_DATA);
         io_wait();
 
-        if (code & 0x80) {
+        /* Extended prefix (E0) marks arrow keys / Del etc. */
+        if (code == SCAN_EXT_PREFIX) { g_ext = 1; continue; }
+
+        int release = code & 0x80;
+        uint8_t make = code & 0x7f;
+
+        if (release) {
             /* key release: 0x80 | make-code. Track shift release. */
-            uint8_t make = code & 0x7f;
             if (make == SCAN_LSHIFT || make == SCAN_RSHIFT) g_shift = 0;
+            g_ext = 0;
             continue;
         }
 
-        switch (code) {
+        switch (make) {
             case SCAN_LSHIFT:
             case SCAN_RSHIFT:
                 g_shift = 1;
@@ -328,7 +357,7 @@ static void kbd_poll(int cursor_on) {
                 g_caps = !g_caps;
                 break;
             case SCAN_ENTER:
-                if (cursor_on) toggle_cursor();
+                redraw_input_row();
                 run_command();
                 refresh_input(1);
                 break;
@@ -337,25 +366,25 @@ static void kbd_poll(int cursor_on) {
                 refresh_input(cursor_on);
                 break;
             case SCAN_LEFT:
-                if (g_cursor > 0) { g_cursor--; refresh_input(cursor_on); }
+                if (g_ext && g_cursor > 0) { g_cursor--; refresh_input(cursor_on); }
                 break;
             case SCAN_RIGHT:
-                if (g_cursor < g_len) { g_cursor++; refresh_input(cursor_on); }
+                if (g_ext && g_cursor < g_len) { g_cursor++; refresh_input(cursor_on); }
                 break;
             case SCAN_DEL:
-                line_del_at_cursor();
-                refresh_input(cursor_on);
+                if (g_ext) { line_del_at_cursor(); refresh_input(cursor_on); }
                 break;
             case SCAN_TAB:
             case SCAN_ESC:
                 break;
             default: {
                 int eff_shift = g_shift ^ g_caps;
-                char c = scan_to_ascii(code, eff_shift);
+                char c = scan_to_ascii(make, eff_shift);
                 if (c) { line_insert(c); refresh_input(cursor_on); }
                 break;
             }
         }
+        g_ext = 0;
     }
 }
 
@@ -378,7 +407,7 @@ void kmain(void) {
     if (g_rows < 4) g_rows = 4;
 
     g_len = 0; g_cursor = 0; g_line[0] = 0;
-    g_shift = 0; g_caps = 0;
+    g_shift = 0; g_caps = 0; g_ext = 0;
     g_cur_row = 1;
 
     if (tsc_frequency_request.response) {
@@ -409,7 +438,7 @@ void kmain(void) {
             if (now - last_ts >= BLINK_TICKS) {
                 last_ts = now;
                 cursor_on = !cursor_on;
-                toggle_cursor();
+                refresh_input(cursor_on);
             }
         } else {
             blink++;

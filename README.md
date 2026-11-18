@@ -74,7 +74,17 @@ build_hmos.bat
 
 # 安全引导硬盘镜像
 .\qemu_test\run_sb_disk_test.ps1 -Seconds 12
+
+# 键盘交互冒烟测试：BIOS 启动后经 monitor 发送按键，核对回显与回车提交
+.\qemu_test\run_kbd_test.ps1
 ```
+
+### 内核 Shell（ASCII 输入）
+
+`kernel.c` 在帧缓冲上实现了一个最简命令行：PS/2 端口 0x60 轮询扫描码，行缓冲 + 光标定位，
+支持可打印字符插入、退格、左右方向键、Del、回车提交；回车后回显命令行并输出占位回复，
+命令派发钩子留在 `run_command()`。光标以反色块叠加在插入格上（XOR 可逆，不覆盖字符），
+闪烁节拍基于 Limine TSC 频率请求，按真实 500ms 翻转。当前仅 ASCII，中文渲染留待后续。
 
 ### 安全引导要点
 

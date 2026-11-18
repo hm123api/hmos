@@ -130,10 +130,11 @@ static void draw_char_at(struct limine_framebuffer *fb, char c, size_t col, size
     put_glyph(fb, font8x16[idx], col * STRIDE_X, row * STRIDE_Y, fg);
 }
 
-/* Render one logical line (no null terminator required) at a screen row. */
-static void draw_line_at(const char *buf, size_t len, size_t row, uint32_t fg) {
+/* Render one logical line (no null terminator required) at a screen row.
+ * `start_col` is the screen column the first character occupies. */
+static void draw_line_at(const char *buf, size_t len, size_t row, uint32_t fg, size_t start_col) {
     for (size_t i = 0; i < len; i++) {
-        draw_char_at(g_fb, buf[i], i, row, fg);
+        draw_char_at(g_fb, buf[i], start_col + i, row, fg);
     }
 }
 
@@ -161,10 +162,10 @@ static void erase_cell(size_t col, size_t row) {
 /* Erase every glyph on one screen row, then redraw the line content. */
 static void redraw_input_row(void) {
     for (size_t col = 0; col < g_cols; col++) erase_cell(col, g_cur_row);
-    /* prompt "> " then the buffered text */
+    /* prompt "> " then the buffered text, text starts at column 2 */
     draw_char_at(g_fb, '>', 0, g_cur_row, 0x00CCCCCCu);
     draw_char_at(g_fb, ' ', 1, g_cur_row, 0x00CCCCCCu);
-    draw_line_at(g_line, g_len, g_cur_row, 0x00FFFFFFu);
+    draw_line_at(g_line, g_len, g_cur_row, 0x00FFFFFFu, 2);
 }
 
 /* Solid block cursor at the insertion cell. On: fill the cell with an
@@ -244,7 +245,7 @@ static void print_line(const char *msg, uint32_t fg) {
     }
     size_t len = xstrlen(msg);
     if (len > g_cols) len = g_cols;
-    draw_line_at(msg, len, g_cur_row, fg);
+    draw_line_at(msg, len, g_cur_row, fg, 0);
 }
 
 /* ---- keyboard ---- */
@@ -420,7 +421,7 @@ void kmain(void) {
     /* welcome banner on row 0, input prompt on row 1 */
     draw_line_at("HMOS shell (ASCII input). Type and press Enter.",
                  xstrlen("HMOS shell (ASCII input). Type and press Enter."),
-                 0, 0x0088CCFFu);
+                 0, 0x0088CCFFu, 0);
     refresh_input(1);
 
     /* Blink every 500 ms using the TSC; fall back to a counter if the

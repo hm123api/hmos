@@ -219,6 +219,36 @@ gzip -9 -c esp.img > esp.img.gz
 - **本机做不了 GPT+ESP 重做**：无 diskpart/mtools/gdisk/sgdisk/fdisk/parted/mkfs.vfat/syslinux/dd；系统级分区/格式化被策略阻断；云主机无 sudo、装 mtools 被拒。当前物理卡为 MBR `0x0B` 单分区，非 GPT ESP GUID；部分真机 UEFI 可能不把它识别为 ESP。
 - **2026-11-16 材料刷新**：盘上 `BOOTX64.EFI`、`HMOS.EFI` 旧副本已用 `esp_material\` 最新版覆盖，五文件 SHA256 全部 match；旧版备份在盘上 `keys\backup-old-efi\`。盘上另残留 ISO 解包文件（`[BOOT]\*.img`、`boot.bin`、`boot.catalog`、`autorun.*`、`limine-uefi-cd.bin`、`limine-bios-cd.bin`），磁盘 ESP 路径不使用，未删除。
 
+#### 8.0.9 本机现有信任链盘点与登记策略（2026-11-16，提权只读）
+
+本机 HEMING-PC（ASUS All Series，AMI BIOS 3602）当前为 **User Mode**：`SecureBootEnabled=True`，PK/KEK/db/dbx 各 1 条记录，属性均为 `NON VOLATILE | BOOTSERVICE ACCESS | RUNTIME ACCESS | TIME BASED AUTHENTICATED WRITE`。提权只读导出变量字节并解析出的现有根证书：
+
+| 变量 | 现有证书主体 |
+|---|---|
+| PK | CN=ASUSTeK MotherBoard PK Certificate |
+| KEK | CN=ASUSTeK MotherBoard KEK Certificate；Microsoft Corporation KEK CA 2011；Canonical Ltd. Master Certificate Authority |
+| db | CN=ASUSTeK MotherBoard SW Key Certificate；CN=ASUSTeK Notebook SW Key Certificate；Microsoft Corporation UEFI CA 2011；Microsoft Windows Production PCA 2011；Canonical Ltd. Master Certificate Authority |
+
+**User Mode 下追加自建证书被固件规则锁死（UEFI 规范 + 微软密钥管理指南）**：
+
+- 更新/追加 db、dbx 必须由 **现有 KEK 中任一实体** 签名的认证包；
+- 更新/追加 KEK 必须由 **现有 PK** 签名；
+- 清除/替换 PK 必须由 **现有 PK** 签名。
+
+我们自建的 pk/kek/db 是独立自签根链，签不动出厂 ASUS/微软根，因此在保持出厂链在位的 User Mode 下，追加自建 db 会被拒绝（`Incorrect authentication data` / Access Denied）。
+
+**唯一在本机可行的链路：先进入 Setup Mode，再按 db → KEK → PK 登记自建链。**
+
+1. 重启进固件（F2/Del）→ Secure Boot Mode 改 `Custom` → Expert Key Management / Key Management → `Reset To Setup Mode`（清除 PK，进入 Setup Mode；出厂 db/KEK 可一并清除或保留）→ F10 保存退出。
+2. Setup Mode 下固件接受未签名 ESL，按 db → KEK → PK 依次登记 `keys\db.esl`、`keys\kek.esl`、`keys\pk.esl`：可在固件 Key Management 界面从 U 盘加载，或以管理员用 Windows `Set-SecureBootUEFI -ContentFilePath <esl>` / Linux `efi-updatevar -e -f <esl> <var>` 写入。（本机曾准备的 `enroll_keys.ps1` 提权脚本已在轻量清理中移除，需要时可按此口径重建。）
+3. 重启回固件，Secure Boot Control 置 `Enabled`，保存退出；从 HMOS ESP 磁盘启动即放行自建 db 签名的 EFI。
+
+> 状态：真机登记**尚未执行**，本轮暂停推进。上述链路是在保持出厂链不可追加的前提下，经固件规则核对得出的可行方向。
+
+**`.auth` 包的适用口径（勿混用）**：完整自包含认证变量包（EFI_TIME 头 + WIN_CERTIFICATE 头 + 裸 SignedData + 尾部 ESL）供 Linux `efi-updatevar -f <auth> <var>` 或固件 KeyTool 直接写入；此前离线三份均 `Verification successful`，产物已在轻量清理中从本地移除。Windows `Set-SecureBootUEFI` 的 `-SignedFilePath` 配对的是 **detached `.p7`**（不含内容），与完整 `.auth` 口径不同，故 Windows 侧登记走 Setup Mode 直喂 ESL，不直接喂 `.auth`。
+
+**QEMU 闭环复测（无真机条件下的验收）**：`esp.img`（MD5 `a4784811daad792412e81c9a3e5b96f6`，五文件 SHA256 与 `esp_material\` 一致）+ secure OVMF code + 已登记自建链的 `vars-official-keys.fd`，无头跑 18 秒，帧图居中显示 `HMOS - UEFI Boot OK!`，安全引导验签与内核跳转通过。
+
 ## 九、测试脚本（`qemu_test\`）
 
 - `run_test.ps1 -Mode bios|uefi`：非 SB 双模式回归。

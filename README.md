@@ -86,4 +86,6 @@ build_hmos.bat
 
 - `keys\` 下 `.key` 为签名私钥，已在 `.gitignore` 中排除，**切勿提交到公开仓库**。
 - 入库的 `.crt/.der/.esl` 是公钥材料，可用于在固件里登记 PK/KEK/db。
+- `keys\auth\` 目录用于存放完整认证变量包（`.auth`，含私钥签名），已在 `.gitignore` 中排除，不入库。
 - `keys\alt\` 是错配 db 对照证书（诱饵），用于安全引导拒绝路径的对照测试。
+- **真机登记（暂停，未打通）**：出厂 User Mode 下追加自建 db 必须由现有 KEK 签名，自建根链签不动出厂 ASUS/微软根；可行方向是先进固件 `Reset To Setup Mode`，再按 db→KEK→PK 登记 `.esl`，详见 `SECURE_BOOT_STATUS.md` 8.0.9。当前未在真机执行登记。
